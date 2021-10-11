@@ -13,6 +13,7 @@
     "dependencies": {
         "cors": "^2.8.5",
         "express": "^4.17.1",
+        "livekit-server-sdk": "^0.5.4",
         "nodemon": "^2.0.13",
         "socket.io": "^4.2.0"
     }
