@@ -18,7 +18,12 @@ app.get("/api/get-token", (req, res) => {
     const identity = req.query.identity;
     const host = req.query.host;
 
-    const canPublish = host ? true : false;
+    let canPublish = false;
+    if (host === "true") {
+        canPublish = true;
+    }
+
+    console.log(`${identity} - CAN PUB - ${canPublish}`);
 
     const accessParams = {
         identity: identity,
@@ -34,6 +39,8 @@ app.get("/api/get-token", (req, res) => {
 
     const token = at.toJwt();
 
+    updateStreams();
+
     return res.send({ token: token });
 });
 
@@ -48,11 +55,22 @@ const io = new Server(server, {
 let streams = [];
 
 io.on("connection", (socket) => {
+    updateStreams();
+    console.log(`${socket.id} Connected`);
+
+    socket.on("disconnect", (reason) => {
+        updateStreams();
+        console.log(`${socket.id} Disconnected. Reason: ${reason}`);
+    });
+});
+
+const updateStreams = () => {
     const livekitHost = "http://192.168.0.114:7880";
     const svc = new RoomServiceClient(livekitHost, LKAPIKEY, LKAPISECRET);
 
     // list rooms
     svc.listRooms().then((rooms) => {
+        const newStreams = [];
         rooms.map((room) => {
             const stream = {
                 streamer: room.name,
@@ -61,20 +79,13 @@ io.on("connection", (socket) => {
                 listeners: "Placeholder",
             };
 
-            const newStreams = streams.filter((s) => s.streamer !== room.name);
-            streams = [...newStreams, stream];
+            newStreams.push(stream);
         });
-        console.log("existing rooms", rooms);
+        streams = newStreams;
+        console.log(rooms);
+        io.emit("all-streams", streams);
     });
-
-    socket.emit("all-streams", streams);
-
-    console.log(`${socket.id} Connected`);
-
-    socket.on("disconnect", (reason) => {
-        console.log(`${socket.id} Disconnected. Reason: ${reason}`);
-    });
-});
+};
 
 // Start HTTP Server
 const PORT = process.env.EXPRESS_PORT || 5001;
