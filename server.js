@@ -65,7 +65,8 @@ io.on("connection", (socket) => {
 });
 
 const updateStreams = () => {
-    const livekitHost = "http://192.168.0.114:7880";
+    const livekitHost = "http://localhost:7880";
+    // const livekitHost = "http://192.168.0.114:7880";
     const svc = new RoomServiceClient(livekitHost, LKAPIKEY, LKAPISECRET);
 
     // list rooms
