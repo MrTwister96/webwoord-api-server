@@ -165,7 +165,7 @@ const cleanRooms = async (socket) => {
         io.emit("update-rooms", rooms);
 
         setTimeout(() => {
-            const livekitHost = "http://localhost:7880";
+            const livekitHost = "http://192.168.8.102:7880";
             const svc = new RoomServiceClient(
                 livekitHost,
                 LKAPIKEY,
