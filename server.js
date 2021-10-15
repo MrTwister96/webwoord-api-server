@@ -17,6 +17,7 @@ app.get("/api/get-token", (req, res) => {
     const roomName = req.query.roomName;
     const identity = req.query.identity;
     const host = req.query.host;
+    const socketId = req.query.socketId;
 
     let canPublish = false;
     if (host === "true") {
@@ -39,7 +40,29 @@ app.get("/api/get-token", (req, res) => {
 
     const token = at.toJwt();
 
-    updateStreams();
+    const streamExist = streams.find((s) => s.room === roomName);
+
+    if (streamExist === undefined) {
+        const newStream = {
+            host: socketId,
+            room: roomName,
+            streamer: roomName,
+            speaker: identity,
+            description: "Placeholder",
+            listeners: "Placeholder",
+            participants: [],
+        };
+
+        streams.push(newStream);
+
+        io.emit("all-streams", streams);
+    }
+
+    console.log(streams);
+
+    // console.log(streamExist);
+
+    // updateStreams();
 
     return res.send({ token: token });
 });
@@ -55,37 +78,67 @@ const io = new Server(server, {
 let streams = [];
 
 io.on("connection", (socket) => {
-    updateStreams();
+    socket.emit("all-streams", streams);
     console.log(`${socket.id} Connected`);
 
     socket.on("disconnect", (reason) => {
-        updateStreams();
+        cleanRooms(socket);
         console.log(`${socket.id} Disconnected. Reason: ${reason}`);
+    });
+
+    socket.on("join-room", (roomName) => {
+        console.log(streams);
+
+        const stream = streams.find((s) => s.room === roomName);
+
+        const newParticipants = [socket.id, ...stream.participants];
+
+        const newStream = {
+            ...stream,
+            participants: newParticipants,
+        };
+
+        const filterStreams = streams.filter((s) => s.room !== roomName);
+
+        const newStreams = [...filterStreams, newStream];
+
+        streams = newStreams;
+
+        console.log(streams);
     });
 });
 
-const updateStreams = () => {
-    const livekitHost = "http://localhost:7880";
-    // const livekitHost = "http://192.168.0.114:7880";
-    const svc = new RoomServiceClient(livekitHost, LKAPIKEY, LKAPISECRET);
+const cleanRooms = async (socket) => {
+    // console.log(socketId);
+    // console.log(streams);
+    const stream = streams.find((s) => s.host === socket.id);
+    console.log(stream);
 
-    // list rooms
-    svc.listRooms().then((rooms) => {
-        const newStreams = [];
-        rooms.map((room) => {
-            const stream = {
-                streamer: room.name,
-                speaker: "Placeholder",
-                description: "Placeholder",
-                listeners: "Placeholder",
-            };
+    if (stream) {
+        const roomName = stream.room;
 
-            newStreams.push(stream);
+        stream.participants.forEach((part) => {
+            io.to(part).emit("leave-room");
         });
+
+        const newStreams = streams.filter((s) => s.room !== roomName);
         streams = newStreams;
-        console.log(rooms);
         io.emit("all-streams", streams);
-    });
+
+        setTimeout(() => {
+            const livekitHost = "http://localhost:7880";
+            // const livekitHost = "http://192.168.0.114:7880";
+            const svc = new RoomServiceClient(
+                livekitHost,
+                LKAPIKEY,
+                LKAPISECRET
+            );
+
+            svc.deleteRoom(roomName).then(() => {
+                console.log("Stream Deleted");
+            });
+        }, 5000);
+    }
 };
 
 // Start HTTP Server
