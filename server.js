@@ -98,13 +98,12 @@ io.on("connection", (socket) => {
     socket.emit("update-rooms", rooms);
 
     socket.on("disconnect", (reason) => {
+        disconnectFromRoom(socket);
         cleanRooms(socket);
         console.log(`${socket.id} Disconnected. Reason: ${reason}`);
     });
 
     socket.on("join-room", (roomName) => {
-        console.log(rooms);
-
         const room = rooms.find((room) => room.roomName === roomName);
 
         const newListeners = [socket.id, ...room.listeners];
@@ -122,14 +121,37 @@ io.on("connection", (socket) => {
         rooms = newRooms;
 
         io.emit("update-rooms", rooms);
-
-        console.log(rooms);
     });
 });
 
+const disconnectFromRoom = (socket) => {
+    const room = rooms.find((room) => room.listeners.includes(socket.id));
+
+    if (room) {
+        const newListeners = room.listeners.filter(
+            (listener) => listener !== socket.id
+        );
+
+        const newRoom = {
+            ...room,
+            listeners: newListeners,
+            listenerCount: room.listenerCount - 1,
+        };
+
+        const filterRooms = rooms.filter(
+            (room) => room.roomName !== room.roomName
+        );
+
+        const newRooms = [...filterRooms, newRoom];
+
+        rooms = newRooms;
+
+        io.emit("update-rooms", rooms);
+    }
+};
+
 const cleanRooms = async (socket) => {
     const room = rooms.find((room) => room.roomHostSocketId === socket.id);
-    console.log(room);
 
     if (room) {
         room.listeners.forEach((listener) => {
