@@ -49,7 +49,7 @@ app.get("/api/get-token", (req, res) => {
             streamer: roomName,
             speaker: identity,
             description: "Placeholder",
-            listeners: "Placeholder",
+            listeners: 0,
             participants: [],
         };
 
@@ -96,6 +96,7 @@ io.on("connection", (socket) => {
         const newStream = {
             ...stream,
             participants: newParticipants,
+            listeners: stream.listeners + 1,
         };
 
         const filterStreams = streams.filter((s) => s.room !== roomName);
@@ -103,6 +104,8 @@ io.on("connection", (socket) => {
         const newStreams = [...filterStreams, newStream];
 
         streams = newStreams;
+
+        io.emit("all-streams", streams);
 
         console.log(streams);
     });
