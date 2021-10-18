@@ -122,6 +122,10 @@ io.on("connection", (socket) => {
 
         io.emit("update-rooms", rooms);
     });
+
+    socket.on("show-streams", () => {
+        console.log(rooms);
+    });
 });
 
 const disconnectFromRoom = (socket) => {
@@ -138,9 +142,7 @@ const disconnectFromRoom = (socket) => {
             listenerCount: room.listenerCount - 1,
         };
 
-        const filterRooms = rooms.filter(
-            (room) => room.roomName !== room.roomName
-        );
+        const filterRooms = rooms.filter((r) => r.roomName !== room.roomName);
 
         const newRooms = [...filterRooms, newRoom];
 
@@ -151,30 +153,35 @@ const disconnectFromRoom = (socket) => {
 };
 
 const cleanRooms = async (socket) => {
+    console.log(`Clean Rooms. Socket: ${socket.id}`);
     const room = rooms.find((room) => room.roomHostSocketId === socket.id);
 
+    console.log(room);
     if (room) {
         room.listeners.forEach((listener) => {
             io.to(listener).emit("leave-room");
         });
 
-        const newRooms = rooms.filter(
-            (room) => room.roomName !== room.roomName
-        );
+        const newRooms = rooms.filter((r) => r.roomName !== room.roomName);
         rooms = newRooms;
         io.emit("update-rooms", rooms);
 
         setTimeout(() => {
-            const livekitHost = "http://192.168.0.119:7880";
+            // const livekitHost = "http://192.168.0.119:7880";
+            const livekitHost = "https://ptype.app/";
             const svc = new RoomServiceClient(
                 livekitHost,
                 LKAPIKEY,
                 LKAPISECRET
             );
 
-            svc.deleteRoom(room.roomName).then(() => {
-                console.log("Room Deleted");
-            });
+            svc.deleteRoom(room.roomName)
+                .then(() => {
+                    console.log("Room Deleted");
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
         }, 5000);
     }
 };
