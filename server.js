@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
-import { Server } from "socket.io";
+// import { Server } from "socket.io";
 import { AccessToken } from "livekit-server-sdk";
 import { RoomServiceClient, Room } from "livekit-server-sdk";
 
@@ -83,7 +83,14 @@ app.get("/api/get-listener-token", (req, res) => {
 });
 
 // Start Socket.IO
-const io = new Server(server, {
+// const io = new Server(server, {
+//     cors: {
+//         origin: "*",
+//         methods: ["GET", "POST"],
+//     },
+// });
+
+const io = require("socket.io")(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"],
