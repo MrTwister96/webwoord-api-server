@@ -15,21 +15,19 @@ const LKAPISECRET = "MZmJfu0DecJ23eJv7azV1iAfyerPK7LsDXpPq7f6zCdI";
 
 app.get("/api/get-token", (req, res) => {
     const roomName = req.query.roomName;
-    const identity = req.query.identity;
-    const host = req.query.host;
+    const roomHost = req.query.roomHost;
+    const roomHostSocketId = req.query.roomHostSocketId;
+    const isHost = req.query.isHost;
+    const prediker = req.query.prediker;
+    const beskrywing = req.query.beskrywing;
 
-    let canPublish = false;
-    if (host === "true") {
-        canPublish = true;
-    }
+    let canPublish;
+    isHost === "true" ? (canPublish = true) : (canPublish = false);
 
-    console.log(`${identity} - CAN PUB - ${canPublish}`);
+    const at = new AccessToken(LKAPIKEY, LKAPISECRET, {
+        identity: roomHost,
+    });
 
-    const accessParams = {
-        identity: identity,
-    };
-
-    const at = new AccessToken(LKAPIKEY, LKAPISECRET, accessParams);
     at.addGrant({
         roomJoin: true,
         room: roomName,
@@ -39,7 +37,47 @@ app.get("/api/get-token", (req, res) => {
 
     const token = at.toJwt();
 
-    updateStreams();
+    const roomExist = rooms.find((room) => room.roomName === roomName);
+
+    if (roomExist === undefined) {
+        const newRoom = {
+            roomName: roomName,
+            roomHost: roomHost,
+            roomHostSocketId: roomHostSocketId,
+            prediker: prediker,
+            beskrywing: beskrywing,
+            listenerCount: 0,
+            listeners: [],
+        };
+
+        rooms.push(newRoom);
+
+        io.emit("update-rooms", rooms);
+    }
+
+    return res.send({ token: token });
+});
+
+app.get("/api/get-listener-token", (req, res) => {
+    const roomName = req.query.roomName;
+    const identity = req.query.identity;
+    const host = req.query.host;
+
+    let canPublish;
+    host === "true" ? (canPublish = true) : (canPublish = false);
+
+    const at = new AccessToken(LKAPIKEY, LKAPISECRET, {
+        identity: identity,
+    });
+
+    at.addGrant({
+        roomJoin: true,
+        room: roomName,
+        canPublish: canPublish,
+        canSubscribe: !canPublish,
+    });
+
+    const token = at.toJwt();
 
     return res.send({ token: token });
 });
@@ -52,40 +90,100 @@ const io = new Server(server, {
     },
 });
 
-let streams = [];
+let rooms = [];
 
 io.on("connection", (socket) => {
-    updateStreams();
     console.log(`${socket.id} Connected`);
 
+    socket.emit("update-rooms", rooms);
+
     socket.on("disconnect", (reason) => {
-        updateStreams();
+        disconnectFromRoom(socket);
+        cleanRooms(socket);
         console.log(`${socket.id} Disconnected. Reason: ${reason}`);
+    });
+
+    socket.on("join-room", (roomName) => {
+        const room = rooms.find((room) => room.roomName === roomName);
+
+        const newListeners = [socket.id, ...room.listeners];
+
+        const newRoom = {
+            ...room,
+            listeners: newListeners,
+            listenerCount: room.listenerCount + 1,
+        };
+
+        const filterRooms = rooms.filter((room) => room.roomName !== roomName);
+
+        const newRooms = [...filterRooms, newRoom];
+
+        rooms = newRooms;
+
+        io.emit("update-rooms", rooms);
+    });
+
+    socket.on("show-streams", () => {
+        console.log(rooms);
     });
 });
 
-const updateStreams = () => {
-    const livekitHost = "http://localhost:7880";
-    // const livekitHost = "http://192.168.0.114:7880";
-    const svc = new RoomServiceClient(livekitHost, LKAPIKEY, LKAPISECRET);
+const disconnectFromRoom = (socket) => {
+    const room = rooms.find((room) => room.listeners.includes(socket.id));
 
-    // list rooms
-    svc.listRooms().then((rooms) => {
-        const newStreams = [];
-        rooms.map((room) => {
-            const stream = {
-                streamer: room.name,
-                speaker: "Placeholder",
-                description: "Placeholder",
-                listeners: "Placeholder",
-            };
+    if (room) {
+        const newListeners = room.listeners.filter(
+            (listener) => listener !== socket.id
+        );
 
-            newStreams.push(stream);
+        const newRoom = {
+            ...room,
+            listeners: newListeners,
+            listenerCount: room.listenerCount - 1,
+        };
+
+        const filterRooms = rooms.filter((r) => r.roomName !== room.roomName);
+
+        const newRooms = [...filterRooms, newRoom];
+
+        rooms = newRooms;
+
+        io.emit("update-rooms", rooms);
+    }
+};
+
+const cleanRooms = async (socket) => {
+    console.log(`Clean Rooms. Socket: ${socket.id}`);
+    const room = rooms.find((room) => room.roomHostSocketId === socket.id);
+
+    console.log(room);
+    if (room) {
+        room.listeners.forEach((listener) => {
+            io.to(listener).emit("leave-room");
         });
-        streams = newStreams;
-        console.log(rooms);
-        io.emit("all-streams", streams);
-    });
+
+        const newRooms = rooms.filter((r) => r.roomName !== room.roomName);
+        rooms = newRooms;
+        io.emit("update-rooms", rooms);
+
+        setTimeout(() => {
+            // const livekitHost = "http://192.168.0.119:7880";
+            const livekitHost = "https://ptype.app/";
+            const svc = new RoomServiceClient(
+                livekitHost,
+                LKAPIKEY,
+                LKAPISECRET
+            );
+
+            svc.deleteRoom(room.roomName)
+                .then(() => {
+                    console.log("Room Deleted");
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        }, 5000);
+    }
 };
 
 // Start HTTP Server
