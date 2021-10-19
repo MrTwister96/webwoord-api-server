@@ -1,72 +1,35 @@
-import express from "express";
-import cors from "cors";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { AccessToken } from "livekit-server-sdk";
-import { RoomServiceClient, Room } from "livekit-server-sdk";
+import { RoomServiceClient, AccessToken } from "livekit-server-sdk";
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+dotenv.config();
+
+const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
+const LIVEIT_API_SECRET = process.env.LIVEIT_API_SECRET;
 
 const app = express();
 const server = createServer(app);
-
 app.use(cors());
-
-const LKAPIKEY = "APIn26mHVrdLxBo";
-const LKAPISECRET = "MZmJfu0DecJ23eJv7azV1iAfyerPK7LsDXpPq7f6zCdI";
+const io = new Server(server, {
+    cors: {
+        origin: ["https://webwoord-d3f8b.web.app", "http://localhost:3000"],
+        methods: ["GET", "POST"],
+        allowedHeaders: ["my-custom-header"],
+        credentials: true,
+    },
+});
 
 app.get("/api/get-token", (req, res) => {
     const roomName = req.query.roomName;
-    const roomHost = req.query.roomHost;
-    const roomHostSocketId = req.query.roomHostSocketId;
+    const identity = req.query.identity;
     const isHost = req.query.isHost;
-    const prediker = req.query.prediker;
-    const beskrywing = req.query.beskrywing;
 
     let canPublish;
     isHost === "true" ? (canPublish = true) : (canPublish = false);
 
-    const at = new AccessToken(LKAPIKEY, LKAPISECRET, {
-        identity: roomHost,
-    });
-
-    at.addGrant({
-        roomJoin: true,
-        room: roomName,
-        canPublish: canPublish,
-        canSubscribe: !canPublish,
-    });
-
-    const token = at.toJwt();
-
-    const roomExist = rooms.find((room) => room.roomName === roomName);
-
-    if (roomExist === undefined) {
-        const newRoom = {
-            roomName: roomName,
-            roomHost: roomHost,
-            roomHostSocketId: roomHostSocketId,
-            prediker: prediker,
-            beskrywing: beskrywing,
-            listenerCount: 0,
-            listeners: [],
-        };
-
-        rooms.push(newRoom);
-
-        io.emit("update-rooms", rooms);
-    }
-
-    return res.send({ token: token });
-});
-
-app.get("/api/get-listener-token", (req, res) => {
-    const roomName = req.query.roomName;
-    const identity = req.query.identity;
-    const host = req.query.host;
-
-    let canPublish;
-    host === "true" ? (canPublish = true) : (canPublish = false);
-
-    const at = new AccessToken(LKAPIKEY, LKAPISECRET, {
+    const at = new AccessToken(LIVEKIT_API_KEY, LIVEIT_API_SECRET, {
         identity: identity,
     });
 
@@ -79,17 +42,31 @@ app.get("/api/get-listener-token", (req, res) => {
 
     const token = at.toJwt();
 
-    return res.send({ token: token });
-});
+    if (canPublish) {
+        const roomHostSocketId = req.query.roomHostSocketId;
+        const prediker = req.query.prediker;
+        const beskrywing = req.query.beskrywing;
 
-// Start Socket.IO
-const io = new Server(server, {
-    cors: {
-        origin: ["https://webwoord-d3f8b.web.app", "http://localhost:3000"],
-        methods: ["GET", "POST"],
-        allowedHeaders: ["my-custom-header"],
-        credentials: true,
-    },
+        const roomExist = rooms.find((room) => room.roomName === roomName);
+
+        if (roomExist === undefined) {
+            const newRoom = {
+                roomName: roomName,
+                roomHost: identity,
+                roomHostSocketId: roomHostSocketId,
+                prediker: prediker,
+                beskrywing: beskrywing,
+                listenerCount: 0,
+                listeners: [],
+            };
+
+            rooms.push(newRoom);
+
+            io.emit("update-rooms", rooms);
+        }
+    }
+
+    return res.send({ token: token });
 });
 
 let rooms = [];
@@ -173,8 +150,8 @@ const cleanRooms = async (socket) => {
             const livekitHost = "https://ptype.app/";
             const svc = new RoomServiceClient(
                 livekitHost,
-                LKAPIKEY,
-                LKAPISECRET
+                LIVEKIT_API_KEY,
+                LIVEIT_API_SECRET
             );
 
             svc.deleteRoom(room.roomName)
@@ -188,7 +165,6 @@ const cleanRooms = async (socket) => {
     }
 };
 
-// Start HTTP Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     console.log(`SERVER STARTED ON ${PORT}`);
