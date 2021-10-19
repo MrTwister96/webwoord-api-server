@@ -6,6 +6,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 dotenv.config();
 
+const LIVEKIT_SERVER = process.env.LIVEKIT_SERVER;
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEIT_API_SECRET = process.env.LIVEIT_API_SECRET;
 
@@ -132,10 +133,8 @@ const disconnectFromRoom = (socket) => {
 };
 
 const cleanRooms = async (socket) => {
-    console.log(`Clean Rooms. Socket: ${socket.id}`);
     const room = rooms.find((room) => room.roomHostSocketId === socket.id);
 
-    console.log(room);
     if (room) {
         room.listeners.forEach((listener) => {
             io.to(listener).emit("leave-room");
@@ -146,10 +145,8 @@ const cleanRooms = async (socket) => {
         io.emit("update-rooms", rooms);
 
         setTimeout(() => {
-            // const livekitHost = "http://192.168.0.119:7880";
-            const livekitHost = "https://ptype.app/";
             const svc = new RoomServiceClient(
-                livekitHost,
+                LIVEKIT_SERVER,
                 LIVEKIT_API_KEY,
                 LIVEIT_API_SECRET
             );
