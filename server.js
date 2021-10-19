@@ -189,7 +189,7 @@ const cleanRooms = async (socket) => {
 };
 
 // Start HTTP Server
-const PORT = 5001;
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     console.log(`SERVER STARTED ON ${PORT}`);
 });
