@@ -85,9 +85,10 @@ app.get("/api/get-listener-token", (req, res) => {
 // Start Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: ["*"],
+        origin: "*",
         methods: ["GET", "POST"],
-        credentials: false,
+        allowedHeaders: ["my-custom-header"],
+        credentials: true,
     },
 });
 
