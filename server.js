@@ -9,13 +9,15 @@ dotenv.config();
 const LIVEKIT_SERVER = process.env.LIVEKIT_SERVER;
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEIT_API_SECRET = process.env.LIVEIT_API_SECRET;
+const CORS_ORIGIN = process.env.CORS_ORIGIN.split(" ");
+console.log(CORS_ORIGIN);
 
 const app = express();
 const server = createServer(app);
 app.use(cors());
 const io = new Server(server, {
     cors: {
-        origin: ["https://webwoord-d3f8b.web.app", "http://localhost:3000"],
+        origin: CORS_ORIGIN,
         methods: ["GET", "POST"],
         allowedHeaders: ["my-custom-header"],
         credentials: true,
