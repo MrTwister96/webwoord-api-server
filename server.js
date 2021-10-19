@@ -85,7 +85,7 @@ app.get("/api/get-listener-token", (req, res) => {
 // Start Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: "https://webwoord-d3f8b.web.app",
+        origin: ["https://webwoord-d3f8b.web.app", "http://localhost:3000"],
         methods: ["GET", "POST"],
         allowedHeaders: ["my-custom-header"],
         credentials: true,
