@@ -10,7 +10,6 @@ const LIVEKIT_SERVER = process.env.LIVEKIT_SERVER;
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEIT_API_SECRET = process.env.LIVEIT_API_SECRET;
 const CORS_ORIGIN = process.env.CORS_ORIGIN.split(" ");
-console.log(CORS_ORIGIN);
 
 const app = express();
 const server = createServer(app);
