@@ -13,7 +13,14 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN.split(" ");
 
 const app = express();
 const server = createServer(app);
-app.use(cors());
+app.use(
+    cors({
+        origin: CORS_ORIGIN,
+        methods: ["GET", "POST"],
+        allowedHeaders: ["my-custom-header"],
+        credentials: true,
+    })
+);
 const io = new Server(server, {
     cors: {
         origin: CORS_ORIGIN,
